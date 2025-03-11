@@ -5,8 +5,8 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, CallbackQu
 from aiogram.utils import executor
 
 # 🔹 Configuración
-TOKEN = "TU_TOKEN_AQUI"
-ADMIN_ID = TU_ID_AQUI  # Reemplázalo con tu ID de Telegram
+TOKEN = "7676417512:AAEgAR_NWZWraG5SjPR2eIzHdk8angR0UxQ"
+ADMIN_ID = 6181290784  # Reemplázalo con tu ID de Telegram
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
