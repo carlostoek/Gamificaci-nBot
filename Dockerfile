@@ -20,7 +20,7 @@ RUN pip install --upgrade pip && pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Asegurar permisos de ejecución en el script principal
-RUN chmod +x main.py  
+RUN chmod +x bot.py  
 
 # Define el comando para ejecutar el bot
 CMD ["python", "main.py"]
