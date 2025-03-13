@@ -25,7 +25,7 @@ async def top_usuarios(message: types.Message):
         return
 
     ranking = "\n".join([f"{i+1}. {user[0]} - {user[1]} puntos" for i, user in enumerate(top)])
-    await message.reply(f"🏆 *Top 10 Jugadores:*\n\n{ranking}", parse_mode="Markdown")
+    await message.reply(f"🏆 *Top 100 Jugadores:*\n\n{ranking}", parse_mode="Markdown")
 
 if __name__ == "__main__":
     executor.start_polling(dp, skip_updates=True)
