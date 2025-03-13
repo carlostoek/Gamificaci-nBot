@@ -19,7 +19,7 @@ async def cmd_start(message: types.Message):
     # Registrar usuario en la base de datos
     agregar_usuario(user_id, username)
     
-    await message.reply(f"🎮 ¡Bienvenido, @{username}! Tu progreso será guardado en el sistema.")
+    await message.reply(f"🎮 Hey, hola! ¡Bienvenido, @{username}! Tu progreso será guardado en el sistema.")
 
 @dp.message_handler(commands=["puntos"])
 async def cmd_puntos(message: types.Message):
