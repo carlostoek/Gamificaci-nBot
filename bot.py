@@ -73,7 +73,70 @@ async def start_command(message: types.Message):
         logger.error(f"Error en /start: {e}")
         await message.reply("❌ Ocurrió un error al procesar tu solicitud.")
 
-# ... (otros handlers)
+@dp.message_handler(commands=["puntaje"])
+async def mi_puntaje(message: types.Message):
+    """Consulta el puntaje y nivel del usuario."""
+    user_id = message.from_user.id
+
+    try:
+        conn = await asyncpg.connect(DATABASE_URL)
+        user = await conn.fetchrow("SELECT puntos, nivel FROM usuarios WHERE user_id = $1", user_id)
+
+        if user:
+            puntos, nivel = user["puntos"], user["nivel"]
+            await message.reply(f"🎯 Tu puntaje actual es: {puntos} puntos.\n⭐ Tu nivel actual es: {nivel}.")
+        else:
+            await message.reply("❌ No estás registrado. Usa /start para registrarte.")
+
+        await conn.close()
+    except Exception as e:
+        logger.error(f"Error en /puntaje: {e}")
+        await message.reply("❌ Ocurrió un error al procesar tu solicitud.")
+
+@dp.message_handler(commands=["sumar_puntos"])
+async def sumar_puntos(message: types.Message):
+    """Suma puntos al usuario (solo para administradores)."""
+    user_id = message.from_user.id
+
+    if user_id != ADMIN_ID:
+        await message.reply("❌ No tienes permisos para usar este comando.")
+        return
+
+    try:
+        conn = await asyncpg.connect(DATABASE_URL)
+        user = await conn.fetchrow("SELECT puntos FROM usuarios WHERE user_id = $1", user_id)
+
+        if user:
+            nuevos_puntos = user["puntos"] + 10
+            await conn.execute("UPDATE usuarios SET puntos = $1 WHERE user_id = $2", nuevos_puntos, user_id)
+            await message.reply(f"🎉 ¡Has ganado 10 puntos! Tu nuevo puntaje es: {nuevos_puntos}.")
+        else:
+            await message.reply("❌ No estás registrado. Usa /start para registrarte.")
+
+        await conn.close()
+    except Exception as e:
+        logger.error(f"Error en /sumar_puntos: {e}")
+        await message.reply("❌ Ocurrió un error al procesar tu solicitud.")
+
+@dp.message_handler(commands=["ranking"])
+async def ranking(message: types.Message):
+    """Muestra el ranking de los usuarios con más puntos."""
+    try:
+        conn = await asyncpg.connect(DATABASE_URL)
+        top_usuarios = await conn.fetch("SELECT username, puntos FROM usuarios ORDER BY puntos DESC LIMIT 10")
+
+        if top_usuarios:
+            ranking_msg = "🏆 Ranking de Usuarios:\n"
+            for i, usuario in enumerate(top_usuarios, start=1):
+                ranking_msg += f"{i}. {usuario['username']}: {usuario['puntos']} puntos\n"
+            await message.reply(ranking_msg)
+        else:
+            await message.reply("❌ No hay usuarios registrados.")
+
+        await conn.close()
+    except Exception as e:
+        logger.error(f"Error en /ranking: {e}")
+        await message.reply("❌ Ocurrió un error al procesar tu solicitud.")
 
 # -------------------- Iniciar el bot --------------------
 
