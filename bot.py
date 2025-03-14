@@ -1,6 +1,6 @@
 import os
 import logging
-import asyncpg
+import sqlite3
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils import executor
 from dotenv import load_dotenv
@@ -11,9 +11,13 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Obtener variables de entorno
-TOKEN = os.getenv("BOT_TOKEN")
-ADMIN_ID = int(os.getenv("ADMIN_ID"))
-DATABASE_URL = os.getenv("DATABASE_URL")  # URL de conexión a PostgreSQL
+TOKEN = os.getenv("BOT_TOKEN")  # Token del bot
+ADMIN_ID = int(os.getenv("ADMIN_ID"))  # ID del administrador
+
+# Verificar que las variables de entorno estén definidas
+if not TOKEN or not ADMIN_ID:
+    logging.error("Faltan variables de entorno. Verifica BOT_TOKEN y ADMIN_ID.")
+    exit(1)
 
 # Configuración de logging
 logging.basicConfig(level=logging.INFO)
@@ -25,30 +29,37 @@ dp = Dispatcher(bot)
 
 # -------------------- Configuración de la Base de Datos --------------------
 
-async def init_db():
+DB_NAME = "database.db"  # Nombre de la base de datos SQLite
+
+def init_db():
     """Inicializa la base de datos y crea las tablas necesarias."""
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        await conn.execute("""
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS usuarios (
-                id SERIAL PRIMARY KEY,
-                user_id BIGINT UNIQUE,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER UNIQUE,
                 username TEXT,
                 puntos INTEGER DEFAULT 0,
                 nivel INTEGER DEFAULT 1
             )
         """)
-        await conn.execute("""
+        cursor.execute("""
             CREATE TABLE IF NOT EXISTS logros (
-                id SERIAL PRIMARY KEY,
-                user_id BIGINT REFERENCES usuarios(user_id),
-                logro TEXT
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                logro TEXT,
+                FOREIGN KEY (user_id) REFERENCES usuarios (user_id)
             )
         """)
-        await conn.close()
+        conn.commit()
+        conn.close()
         logger.info("Base de datos inicializada correctamente.")
     except Exception as e:
         logger.error(f"Error al inicializar la base de datos: {e}")
+
+init_db()  # Se ejecuta al iniciar el bot
 
 # -------------------- Handlers --------------------
 
@@ -59,16 +70,20 @@ async def start_command(message: types.Message):
     username = message.from_user.username
 
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        user = await conn.fetchrow("SELECT * FROM usuarios WHERE user_id = $1", user_id)
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT * FROM usuarios WHERE user_id = ?", (user_id,))
+        user = cursor.fetchone()
 
         if user:
             await message.reply(f"¡Hola {username}! Ya estás registrado en el sistema.")
         else:
-            await conn.execute("INSERT INTO usuarios (user_id, username) VALUES ($1, $2)", user_id, username)
+            cursor.execute("INSERT INTO usuarios (user_id, username) VALUES (?, ?)", (user_id, username))
+            conn.commit()
             await message.reply(f"¡Bienvenido {username}! Ahora estás registrado en el sistema y puedes ganar puntos.")
 
-        await conn.close()
+        conn.close()
     except Exception as e:
         logger.error(f"Error en /start: {e}")
         await message.reply("❌ Ocurrió un error al procesar tu solicitud.")
@@ -79,16 +94,18 @@ async def mi_puntaje(message: types.Message):
     user_id = message.from_user.id
 
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        user = await conn.fetchrow("SELECT puntos, nivel FROM usuarios WHERE user_id = $1", user_id)
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT puntos, nivel FROM usuarios WHERE user_id = ?", (user_id,))
+        user = cursor.fetchone()
 
         if user:
-            puntos, nivel = user["puntos"], user["nivel"]
+            puntos, nivel = user[0], user[1]
             await message.reply(f"🎯 Tu puntaje actual es: {puntos} puntos.\n⭐ Tu nivel actual es: {nivel}.")
         else:
             await message.reply("❌ No estás registrado. Usa /start para registrarte.")
 
-        await conn.close()
+        conn.close()
     except Exception as e:
         logger.error(f"Error en /puntaje: {e}")
         await message.reply("❌ Ocurrió un error al procesar tu solicitud.")
@@ -103,17 +120,20 @@ async def sumar_puntos(message: types.Message):
         return
 
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        user = await conn.fetchrow("SELECT puntos FROM usuarios WHERE user_id = $1", user_id)
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT puntos FROM usuarios WHERE user_id = ?", (user_id,))
+        user = cursor.fetchone()
 
         if user:
-            nuevos_puntos = user["puntos"] + 10
-            await conn.execute("UPDATE usuarios SET puntos = $1 WHERE user_id = $2", nuevos_puntos, user_id)
+            nuevos_puntos = user[0] + 10
+            cursor.execute("UPDATE usuarios SET puntos = ? WHERE user_id = ?", (nuevos_puntos, user_id))
+            conn.commit()
             await message.reply(f"🎉 ¡Has ganado 10 puntos! Tu nuevo puntaje es: {nuevos_puntos}.")
         else:
             await message.reply("❌ No estás registrado. Usa /start para registrarte.")
 
-        await conn.close()
+        conn.close()
     except Exception as e:
         logger.error(f"Error en /sumar_puntos: {e}")
         await message.reply("❌ Ocurrió un error al procesar tu solicitud.")
@@ -122,18 +142,20 @@ async def sumar_puntos(message: types.Message):
 async def ranking(message: types.Message):
     """Muestra el ranking de los usuarios con más puntos."""
     try:
-        conn = await asyncpg.connect(DATABASE_URL)
-        top_usuarios = await conn.fetch("SELECT username, puntos FROM usuarios ORDER BY puntos DESC LIMIT 10")
+        conn = sqlite3.connect(DB_NAME)
+        cursor = conn.cursor()
+        cursor.execute("SELECT username, puntos FROM usuarios ORDER BY puntos DESC LIMIT 10")
+        top_usuarios = cursor.fetchall()
 
         if top_usuarios:
             ranking_msg = "🏆 Ranking de Usuarios:\n"
-            for i, usuario in enumerate(top_usuarios, start=1):
-                ranking_msg += f"{i}. {usuario['username']}: {usuario['puntos']} puntos\n"
+            for i, (username, puntos) in enumerate(top_usuarios, start=1):
+                ranking_msg += f"{i}. {username}: {puntos} puntos\n"
             await message.reply(ranking_msg)
         else:
             await message.reply("❌ No hay usuarios registrados.")
 
-        await conn.close()
+        conn.close()
     except Exception as e:
         logger.error(f"Error en /ranking: {e}")
         await message.reply("❌ Ocurrió un error al procesar tu solicitud.")
@@ -141,9 +163,4 @@ async def ranking(message: types.Message):
 # -------------------- Iniciar el bot --------------------
 
 if __name__ == "__main__":
-    # Inicializar la base de datos antes de iniciar el bot
-    import asyncio
-    asyncio.get_event_loop().run_until_complete(init_db())
-
-    # Iniciar el bot
     executor.start_polling(dp, skip_updates=True)
