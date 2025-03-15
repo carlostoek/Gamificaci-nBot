@@ -5,7 +5,7 @@ from aiogram.utils import executor
 from dotenv import load_dotenv
 from database import init_db
 from handlers.user_handlers import register_user_handlers
-from handlers.admin_handlers import register_admin_handlers
+from handlers.admin_handlers import register_admin_handlers  # Nombre corregido
 from handlers.callback_handlers import register_callback_handlers
 
 # Cargar variables de entorno
@@ -23,7 +23,7 @@ dp = Dispatcher(bot)
 
 # Registrar handlers
 register_user_handlers(dp)
-register_admin_handlers(dp, ADMIN_ID)
+register_admin_handlers(dp, ADMIN_ID)  # Pasar admin_id aquí
 register_callback_handlers(dp)
 
 # Inicializar base de datos
