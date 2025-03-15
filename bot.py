@@ -4,14 +4,16 @@ from aiogram import Bot, Dispatcher
 from aiogram.utils import executor
 from dotenv import load_dotenv
 from database import init_db
-from handlers import user_handlers, admin_handlers, callback_handlers
+from handlers.user_handlers import register_user_handlers
+from handlers.admin_handlers import register_admin_handlers
+from handlers.callback_handlers import register_callback_handlers
 
 # Cargar variables de entorno
 load_dotenv()
 TOKEN = os.getenv("BOT_TOKEN")
 ADMIN_ID = int(os.getenv("ADMIN_ID"))
 
-# Configuración de logging
+# Configurar logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -19,12 +21,12 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
-# Registrar manejadores
-user_handlers.register_handlers(dp)
-admin_handlers.register_handlers(dp)
-callback_handlers.register_handlers(dp)
+# Registrar handlers
+register_user_handlers(dp)
+register_admin_handlers(dp, ADMIN_ID)
+register_callback_handlers(dp)
 
-# Inicializar la base de datos
+# Inicializar base de datos
 init_db()
 
 if __name__ == "__main__":
