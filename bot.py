@@ -21,6 +21,14 @@ logger = logging.getLogger(__name__)
 bot = Bot(token=TOKEN)
 dp = Dispatcher(bot)
 
+def otorgar_puntos_por_permanencia():
+    """Otorga puntos a los usuarios por permanencia semanal."""
+    conn = sqlite3.connect('vip_gamification.db')
+    c = conn.cursor()
+    c.execute('UPDATE usuarios SET puntos = puntos + 50 WHERE julianday("now") - julianday(fecha_ingreso) >= 7')
+    conn.commit()
+    conn.close()
+    
 # Registrar handlers
 register_user_handlers(dp)
 register_admin_handlers(dp, ADMIN_ID)  # Pasar admin_id aquí
