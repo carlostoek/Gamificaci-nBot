@@ -16,6 +16,20 @@ def init_db():
     conn.commit()
     conn.close()
 
+def actualizar_nivel(user_id: int):
+    """Actualiza el nivel del usuario según sus puntos."""
+    conn = sqlite3.connect('vip_gamification.db')
+    c = conn.cursor()
+    c.execute('SELECT puntos FROM usuarios WHERE user_id = ?', (user_id,))
+    puntos = c.fetchone()[0]
+    
+    # Definir niveles (ejemplo: 100 puntos por nivel)
+    nuevo_nivel = puntos // 100
+    c.execute('UPDATE usuarios SET nivel = ? WHERE user_id = ?', (nuevo_nivel, user_id))
+    
+    conn.commit()
+    conn.close()
+
 def registrar_usuario(user_id: int, username: str):
     conn = sqlite3.connect('vip_gamification.db')
     c = conn.cursor()
