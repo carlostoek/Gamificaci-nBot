@@ -4,19 +4,24 @@ from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from database import actualizar_puntos
 
 def register_callback_handlers(dp: Dispatcher):
-    # Publicar encuesta con botones
-    @dp.message_handler(commands=['publicar_encuesta'])
-    async def publicar_encuesta(message: types.Message):
-        teclado = InlineKeyboardMarkup()
+    # Publicar encuesta con botones inline
+    @dp.message_handler(commands=['encuesta'])
+    async def crear_encuesta(message: types.Message):
+        teclado = InlineKeyboardMarkup(row_width=2)
         teclado.add(
-            InlineKeyboardButton("🔥 Me encantó (+5)", callback_data="reaccion:5"),
-            InlineKeyboardButton("👍 Bueno (+3)", callback_data="reaccion:3")
+            InlineKeyboardButton("🔥 Excelente (+10)", callback_data="reaccion:10"),
+            InlineKeyboardButton("👍 Bueno (+5)", callback_data="reaccion:5"),
+            InlineKeyboardButton("😐 Regular (+2)", callback_data="reaccion:2")
         )
-        await message.reply("¿Qué te pareció este contenido?", reply_markup=teclado)
+        await message.reply(
+            "📢 **Encuesta Diaria**\n\n"
+            "¿Cómo calificarías el contenido de hoy?",
+            reply_markup=teclado
+        )
 
-    # Manejar reacciones
+    # Procesar reacciones
     @dp.callback_query_handler(lambda c: c.data.startswith('reaccion:'))
-    async def procesar_reaccion(callback: types.CallbackQuery):
+    async def manejar_reaccion(callback: types.CallbackQuery):
         puntos = int(callback.data.split(':')[1])
         actualizar_puntos(callback.from_user.id, puntos)
-        await callback.answer(f"🎉 ¡+{puntos} puntos!", show_alert=True)
+        await callback.answer(f"🎉 ¡Has ganado {puntos} puntos!", show_alert=True)
