@@ -21,7 +21,21 @@ def register_user_handlers(dp: Dispatcher):
         )
         
         await message.reply("🌟 **Bienvenido al Sistema VIP**\nElige una opción:", reply_markup=teclado)
-
+@dp.callback_query_handler(lambda c: c.data == "menu_perfil")
+async def mostrar_perfil(callback: types.CallbackQuery):
+    usuario = obtener_usuario(callback.from_user.id)
+    if usuario:
+        respuesta = (
+            f"👤 **Perfil de @{usuario[1]}**\n\n"
+            f"⭐ Nivel: {usuario[4]}\n"
+            f"🔢 Puntos: {usuario[3]}\n"
+            f"📅 Miembro desde: {usuario[2]}"
+        )
+    else:
+        respuesta = "❌ No estás registrado. Usa /start para registrarte."
+    
+    teclado = InlineKeyboardMarkup().add(InlineKeyboardButton("🔙 Volver", callback_data="menu_principal"))
+    await callback.message.edit_text(respuesta, reply_markup=teclado)
     # Handler para "Mi Perfil"
     @dp.callback_query_handler(lambda c: c.data == "menu_perfil")
     async def mostrar_perfil(callback: types.CallbackQuery):
