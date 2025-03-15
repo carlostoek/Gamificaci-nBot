@@ -1,25 +1,30 @@
 from aiogram import types
 from aiogram.dispatcher import Dispatcher
-import sqlite3
+from database import actualizar_puntos, obtener_usuario
 
-def register_handlers(dp: Dispatcher):
+def register_admin_handlers(dp: Dispatcher, admin_id: int):
+    """Registra los comandos de administrador."""
+    
     @dp.message_handler(commands=['sumarpuntos'])
     async def cmd_sumarpuntos(message: types.Message):
-        if message.from_user.id != ADMIN_ID:
+        # Verificar permisos
+        if message.from_user.id != admin_id:
+            await message.reply("❌ Solo para administradores.")
             return
         
-        _, user_id, puntos = message.text.split()
-        conn = sqlite3.connect('vip_gamification.db')
-        c = conn.cursor()
+        try:
+            # Obtener parámetros del comando
+            _, user_id, puntos = message.text.split()
+            user_id = int(user_id)
+            puntos = int(puntos)
+            
+            # Aplicar bonificación por renovación consecutiva
+            usuario = obtener_usuario(user_id)
+            bonus = 100 if usuario and usuario[6] >= 3 else 0  # Índice 6 = meses_consecutivos
+            
+            # Actualizar puntos
+            actualizar_puntos(user_id, puntos + bonus)
+            await message.reply(f"✅ {puntos + bonus} puntos asignados al usuario {user_id}.")
         
-        # Aplicar bonificaciones
-        c.execute('SELECT meses_consecutivos FROM usuarios WHERE user_id = ?', (user_id,))
-        meses = c.fetchone()[0]
-        bonus = 100 if meses >= 3 else 0
-        
-        puntos_totales = int(puntos) + bonus
-        c.execute('UPDATE usuarios SET puntos = puntos + ? WHERE user_id = ?', (puntos_totales, user_id))
-        
-        await message.reply(f"✅ {puntos_totales} puntos asignados a @{message.from_user.username}")
-        conn.commit()
-        conn.close()
+        except Exception as e:
+            await message.reply(f"⚠️ Error: {str(e)}. Usa: /sumarpuntos [user_id] [puntos]")
