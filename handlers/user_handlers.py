@@ -1,25 +1,26 @@
 from aiogram import types
 from aiogram.dispatcher import Dispatcher
-import sqlite3
+from database import registrar_usuario, obtener_usuario, top_usuarios
 
-def register_handlers(dp: Dispatcher):
+def register_user_handlers(dp: Dispatcher):
+    @dp.message_handler(commands=['start'])
+    async def cmd_start(message: types.Message):
+        user_id = message.from_user.id
+        username = message.from_user.username
+        registrar_usuario(user_id, username)
+        await message.reply(f"🎉 ¡Bienvenido @{username}! Ahora estás registrado en el sistema VIP.")
+
     @dp.message_handler(commands=['mispuntos'])
     async def cmd_mispuntos(message: types.Message):
-        user_id = message.from_user.id
-        conn = sqlite3.connect('vip_gamification.db')
-        c = conn.cursor()
-        c.execute('SELECT puntos, nivel FROM usuarios WHERE user_id = ?', (user_id,))
-        resultado = c.fetchone()
-        await message.reply(f"🏅 Nivel: {resultado[1]}\n🔢 Puntos: {resultado[0]}")
-        conn.close()
+        user = obtener_usuario(message.from_user.id)
+        if user:
+            await message.reply(f"🏅 **Tu progreso**\n\n🔢 Puntos: {user[3]}\n⭐ Nivel: {user[4]}")
+        else:
+            await message.reply("❌ Primero debes registrarte con /start")
 
     @dp.message_handler(commands=['ranking'])
     async def cmd_ranking(message: types.Message):
-        conn = sqlite3.connect('vip_gamification.db')
-        c = conn.cursor()
-        c.execute('SELECT username, puntos FROM usuarios ORDER BY puntos DESC LIMIT 10')
-        ranking = ["🏆 Ranking VIP:"]
-        for idx, (user, pts) in enumerate(c.fetchall(), 1):
-            ranking.append(f"{idx}. {user}: {pts} puntos")
-        await message.reply("\n".join(ranking))
-        conn.close()
+        ranking = "🏆 **Ranking VIP**\n\n"
+        for idx, (username, puntos) in enumerate(top_usuarios(), 1):
+            ranking += f"{idx}. {username}: {puntos} puntos\n"
+        await message.reply(ranking)
