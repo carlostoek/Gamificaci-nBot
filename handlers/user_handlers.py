@@ -1,40 +1,48 @@
 from aiogram import types
 from aiogram.dispatcher import Dispatcher
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
-from database import actualizar_puntos, obtener_usuario
+from database import obtener_usuario, top_10_usuarios
 
-def register_admin_handlers(dp: Dispatcher, admin_id: int):
-    # Menú de administrador
-    @dp.message_handler(commands=['admin'])
-    async def cmd_admin(message: types.Message):
-        if message.from_user.id != admin_id:
-            return
-        
-        teclado = InlineKeyboardMarkup()
+def register_user_handlers(dp: Dispatcher):
+    # Menú principal con botones
+    @dp.message_handler(commands=['start'])
+    async def cmd_start(message: types.Message):
+        teclado = InlineKeyboardMarkup(row_width=2)
         teclado.add(
-            InlineKeyboardButton("➕ Sumar puntos", callback_data="admin_sumar_puntos"),
-            InlineKeyboardButton("📊 Estadísticas", callback_data="admin_estadisticas")
+            InlineKeyboardButton("📊 Mis puntos", callback_data="menu_mis_puntos"),
+            InlineKeyboardButton("🏆 Ranking", callback_data="menu_ranking"),
+            InlineKeyboardButton("ℹ️ Ayuda", callback_data="menu_ayuda")
         )
-        await message.reply("🔧 **Panel de Administrador**", reply_markup=teclado)
+        await message.reply("🎮 **Menú Principal**\nElige una opción:", reply_markup=teclado)
 
-    # Handler para "Sumar puntos"
-    @dp.callback_query_handler(lambda c: c.data == "admin_sumar_puntos")
-    async def pedir_datos_sumar_puntos(callback: types.CallbackQuery):
-        await callback.message.edit_text(
-            "🔢 Ingresa el ID del usuario y los puntos separados por un espacio:\nEjemplo: `123456789 100`",
-            parse_mode="Markdown"
+    # Handler para "Mis puntos"
+    @dp.callback_query_handler(lambda c: c.data == "menu_mis_puntos")
+    async def mostrar_puntos(callback: types.CallbackQuery):
+        usuario = obtener_usuario(callback.from_user.id)
+        respuesta = (
+            f"🏅 **Tus puntos**\n\n"
+            f"🔢 Puntos: {usuario[3]}\n"
+            f"⭐ Nivel: {usuario[4]}"
         )
-        # Guardar estado para capturar la respuesta
-        from aiogram.dispatcher import FSMContext
-        await callback.message.answer("Esperando datos... (Envía /cancelar para salir)")
+        await callback.message.edit_text(respuesta)
 
-    # Capturar datos para sumar puntos
-    @dp.message_handler(lambda m: m.from_user.id == admin_id and m.text.replace(' ', '').isdigit())
-    async def procesar_sumar_puntos(message: types.Message):
-        user_id, puntos = map(int, message.text.split())
-        usuario = obtener_usuario(user_id)
-        if usuario:
-            actualizar_puntos(user_id, puntos)
-            await message.reply(f"✅ {puntos} puntos asignados a @{usuario[1]}.")
-        else:
-            await message.reply("❌ Usuario no encontrado.")
+    # Handler para "Ranking"
+    @dp.callback_query_handler(lambda c: c.data == "menu_ranking")
+    async def mostrar_ranking(callback: types.CallbackQuery):
+        top_usuarios = top_10_usuarios()
+        respuesta = "🏆 **Top 10 Usuarios**\n\n"
+        for idx, (username, puntos) in enumerate(top_usuarios, 1):
+            respuesta += f"{idx}. {username}: {puntos} puntos\n"
+        await callback.message.edit_text(respuesta)
+
+    # Handler para "Ayuda"
+    @dp.callback_query_handler(lambda c: c.data == "menu_ayuda")
+    async def mostrar_ayuda(callback: types.CallbackQuery):
+        texto = (
+            "❓ **Ayuda**\n\n"
+            "Usa los botones para navegar:\n"
+            "📊 Mis puntos: Muestra tu progreso.\n"
+            "🏆 Ranking: Muestra el top 10.\n"
+            "ℹ️ Ayuda: Muestra este mensaje."
+        )
+        await callback.message.edit_text(texto)
